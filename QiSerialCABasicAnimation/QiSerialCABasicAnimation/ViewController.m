@@ -40,7 +40,7 @@
 //    [self demo4];//!> 4.通过GCD控制线程->达到动画串行效果
 }
 
-//！ 1.给同一个layer添加不同时长的动画
+//！ 1.无Group：所有动画同时进行
 - (void)demo1 {
     
     NSValue *yFromValue = @(CGRectGetMidY(_label.frame));
@@ -61,7 +61,7 @@
 }
 
 
-//! 2.给layer添加组动画
+//! 2.有Group：group的duration对所有动画产生约束（或者说截取）
 - (void)demo2 {
     
     NSValue *xFromValue = @(CGRectGetMidX(_label.frame));
@@ -81,7 +81,7 @@
     [_label.layer addAnimation:groupAnima forKey:nil];
 }
 
-//! 3.串行动画afterSelector
+//! 3.通过afterDelay控制线程->达到动画串行效果
 - (void)demo3 {
     
     [self toBottom];
@@ -93,7 +93,7 @@
     });
 }
 
-//! 4.串行队列动画
+//! 4.通过GCD控制线程->达到动画串行效果
 - (void)demo4 {
     
     // a)创建串行队列
