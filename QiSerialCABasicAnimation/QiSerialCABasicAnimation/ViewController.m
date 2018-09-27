@@ -9,152 +9,68 @@
 #import "ViewController.h"
 #import "QiGridView.h"
 
-@implementation ViewController {
-    
-    UILabel *_basicAniLabel; //!> 用于展示基础动画的label
-}
+@interface ViewController()
+
+@property (nonatomic, strong) UILabel *label;//!< Demo中移动的方块
+
+@end
+
+@implementation ViewController
 
 - (void)viewDidLoad {
+    
     [super viewDidLoad];
     
-    [self setupUI];
+    [self initViews];
+    [self setupButton];//!< 设置按钮
 }
 
 
-- (void)setupUI {
+#pragma mark - 设置按钮点击事件
+
+- (void)startAnimaButtonClicked:(UIButton *)sender {
     
-    self.view.backgroundColor = [UIColor whiteColor];
+    /******************* 一、有无Group区别： *****************/
+//    [self demo1];//!> 1.无Group：所有动画同时进行
+    [self demo2];//!> 2.有Group：group的duration对所有动画产生约束（或者说截取）
     
-    CGFloat ScreenH = [UIScreen mainScreen].bounds.size.height;
-    CGFloat ScreenW = [UIScreen mainScreen].bounds.size.width;
     
-    CGFloat lblW = ScreenW / QiGridViewCol;
-    CGFloat lblH = ScreenH / QiGridViewRow;
-    
-    QiGridView *gridView = [[QiGridView alloc] initWithFrame:[UIScreen mainScreen].bounds];
-    [self.view addSubview:gridView];
-    gridView.backgroundColor = [[UIColor whiteColor] colorWithAlphaComponent:0.2];
-    
-    _basicAniLabel = [[UILabel alloc] initWithFrame:CGRectMake(.0, .0, lblW, lblH)];
-    [self.view addSubview:_basicAniLabel];
-    
-    _basicAniLabel.backgroundColor = [UIColor redColor];
-    _basicAniLabel.text = @"Q·i Share";
-    _basicAniLabel.textAlignment = NSTextAlignmentCenter;
-    _basicAniLabel.font = [UIFont systemFontOfSize:20.0];
-    
-    UIButton *startAnimaBtn = [[UIButton alloc] initWithFrame:CGRectMake(CGRectGetMidX(self.view.frame) - 50.0, ScreenH - 60.0, 100.0, 40.0)];
-    [self.view addSubview:startAnimaBtn];
-    [startAnimaBtn addTarget:self action:@selector(startAnimaButtonClicked:) forControlEvents:UIControlEventTouchUpInside];
-    startAnimaBtn.backgroundColor = [UIColor grayColor];
-    [startAnimaBtn setTitle:@"开始动画" forState:UIControlStateNormal];
+    /******************** 二、动画串行效果： *******************/
+//    [self demo3];//!> 3.通过afterDelay控制线程->达到动画串行效果
+//    [self demo4];//!> 4.通过GCD控制线程->达到动画串行效果
 }
 
-- (void)serialQueueAnima {
+//！ 1.给同一个layer添加不同时长的动画
+- (void)demo1 {
     
-    dispatch_queue_t serialQue = dispatch_queue_create("com.qishare.serialQueue", DISPATCH_QUEUE_SERIAL);
-    dispatch_async(serialQue, ^{
-        dispatch_sync(dispatch_get_main_queue(), ^{
-            [self toBottomAnimation];
-        });
-    });
-    dispatch_async(serialQue, ^{
-        sleep(2.0);
-        dispatch_sync(dispatch_get_main_queue(), ^{
-            [self toRightAnimation];
-        });
-    });
-    dispatch_async(serialQue, ^{
-        sleep(3.0);
-        dispatch_sync(dispatch_get_main_queue(), ^{
-            [self toTopAnimation];
-        });
-    });
-    dispatch_async(serialQue, ^{
-        sleep(1.0);
-        dispatch_sync(dispatch_get_main_queue(), ^{
-            [self toLeftAnimation];
-        });
-    });
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(7.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        self->_basicAniLabel.text = @"Q·i Share";
-    });
-}
-
-/**
- 串行动画performSelectorafterDelay
- */
-- (void)serialAfterSelectorAnimation {
+    NSValue *yFromValue = @(CGRectGetMidY(_label.frame));
+    NSValue *xFromValue = @(CGRectGetMidX(_label.frame));
     
-    // 串行实现 围绕着整个屏幕做一圈转圈的动画
-    /**
-     * 1. performSelectorAfter
-     * 2. 串行队列
-     */
-    [self toBottomAnimation];
-    [self performSelector:@selector(toRightAnimation) withObject:self afterDelay:1.0];
-    [self performSelector:@selector(toTopAnimation) withObject:self afterDelay:2.0];
-    [self performSelector:@selector(toLeftAnimation) withObject:self afterDelay:3.0];
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(4.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        self->_basicAniLabel.text = @"Q·i Share";
-    });
-}
-
-- (void)toBottomAnimation {
-    
-    _basicAniLabel.text = @"Q·i Share向下";
-    NSValue *fromValue = @(CGRectGetMidY(_basicAniLabel.frame));
-    NSValue *byValue = @(CGRectGetHeight(self.view.frame) / QiGridViewRow * (QiGridViewRow - 1));
-    CABasicAnimation *downAnima = [self qiBasicAnimationWithKeyPath:@"position.y" fromValue:fromValue byValue:byValue toValue:nil duration:1.0 fillMode:kCAFillModeForwards removeOnCompletion:NO];
-    [_basicAniLabel.layer addAnimation:downAnima forKey:@"position.y"];
-}
-
-- (void)toRightAnimation {
-    
-    _basicAniLabel.text = @"Q·i Share向右";
-    NSValue *fromValue = @(CGRectGetMidX(_basicAniLabel.frame));
-    NSValue *byValue = @(CGRectGetWidth(self.view.frame) / QiGridViewCol * (QiGridViewCol - 1));
-    CABasicAnimation *rightAnima = [self qiBasicAnimationWithKeyPath:@"position.x" fromValue:fromValue byValue:byValue toValue:nil duration:1.0 fillMode:kCAFillModeForwards removeOnCompletion:NO];
-    [_basicAniLabel.layer addAnimation:rightAnima forKey:@"position.x"];
-}
-
-- (void)toTopAnimation {
-    
-    _basicAniLabel.text = @"Q·i Share向上";
-    // fromValue的写法 动画是假象
-    NSValue *fromValue = @(CGRectGetMidY(_basicAniLabel.frame) + (CGRectGetHeight(self.view.frame) / QiGridViewRow * (QiGridViewRow - 1)));
-    NSValue *byValue = @(-(CGRectGetHeight(self.view.frame) / QiGridViewRow * (QiGridViewRow - 1)));
-    CABasicAnimation *topAnima = [self qiBasicAnimationWithKeyPath:@"position.y" fromValue:fromValue byValue:byValue toValue:nil duration:1.0 fillMode:kCAFillModeForwards removeOnCompletion:NO];
-    [_basicAniLabel.layer addAnimation:topAnima forKey:@"position.y"];
-}
-
-- (void)toLeftAnimation {
-    
-    _basicAniLabel.text = @"Q·i Share向左";
-    NSValue *fromValue = @(CGRectGetMidX(_basicAniLabel.frame) + CGRectGetWidth(self.view.frame) / QiGridViewCol * (QiGridViewCol - 1));
-    NSValue *byValue = @(-(CGRectGetWidth(self.view.frame) / QiGridViewCol * (QiGridViewCol - 1)));
-    CABasicAnimation *leftAnimation = [self qiBasicAnimationWithKeyPath:@"position.x" fromValue:fromValue byValue:byValue toValue:nil duration:1.0 fillMode:kCAFillModeForwards removeOnCompletion:NO];
-    [_basicAniLabel.layer addAnimation:leftAnimation forKey:@"position.x"];
-}
-
-
-
-/**
- @brief 给同一个layer添加组动画
- */
-- (void)addGroupAnimationToSameLayer {
-    
-    // 如果给某layer添加两个时间不同基础动画 这个最好有个复位
+    // 如果给某layer添加两个时间不同基础动画
     /**
      * 动画会执行完毕，不同的动画同时执行，然后剩余的时间继续执行剩余动画
      */
-    NSValue *yFromValue = @(CGRectGetMidY(_basicAniLabel.frame));
+    CABasicAnimation *xBasiAnima = [self qiBasicAnimationWithKeyPath:@"position.x" fromValue:xFromValue byValue:@([UIScreen mainScreen].bounds.size.width / 3 * 2) toValue:nil duration:3.0 fillMode:kCAFillModeForwards removeOnCompletion:NO];
+    [_label.layer addAnimation:xBasiAnima forKey:@"postion.x"];
+    
+    CABasicAnimation *yBasiAnima = [self qiBasicAnimationWithKeyPath:@"position.y" fromValue:yFromValue byValue:@([UIScreen mainScreen].bounds.size.height / 4) toValue:nil duration:1.0 fillMode:kCAFillModeForwards removeOnCompletion:NO];
+    [_label.layer addAnimation:yBasiAnima forKey:@"postion.y"];
+    
+    CABasicAnimation *opacityAnima = [self qiBasicAnimationWithKeyPath:@"opacity" fromValue:@1.0 byValue:@(-0.5) toValue:nil duration:2.0 fillMode:kCAFillModeForwards removeOnCompletion:NO];
+    [_label.layer addAnimation:opacityAnima forKey:@"opacity"];
+}
+
+
+//! 2.给layer添加组动画
+- (void)demo2 {
+    
+    NSValue *xFromValue = @(CGRectGetMidX(_label.frame));
+    CABasicAnimation *xBasiAnima = [self qiBasicAnimationWithKeyPath:@"position.x" fromValue:xFromValue byValue:@([UIScreen mainScreen].bounds.size.width / 3 * 2) toValue:nil duration:3.0 fillMode:kCAFillModeForwards removeOnCompletion:NO];
+    
+    NSValue *yFromValue = @(CGRectGetMidY(_label.frame));
     CABasicAnimation *yBasiAnima = [self qiBasicAnimationWithKeyPath:@"position.y" fromValue:yFromValue byValue:@([UIScreen mainScreen].bounds.size.height / 4) toValue:nil duration:1.0 fillMode:kCAFillModeForwards removeOnCompletion:NO];
     
     CABasicAnimation *alphaAnima = [self qiBasicAnimationWithKeyPath:@"opacity" fromValue:@(1.0) byValue:@(-0.5) toValue:nil duration:1.0 fillMode:kCAFillModeForwards removeOnCompletion:NO];
-    
-    NSValue *xFromValue = @(CGRectGetMidX(_basicAniLabel.frame));
-    CABasicAnimation *xBasiAnima = [self qiBasicAnimationWithKeyPath:@"position.x" fromValue:xFromValue byValue:@([UIScreen mainScreen].bounds.size.width / 3 * 2) toValue:nil duration:2.0 fillMode:kCAFillModeForwards removeOnCompletion:NO];
     
     CAAnimationGroup *groupAnima = [CAAnimationGroup animation];
     groupAnima.removedOnCompletion = NO;
@@ -162,53 +78,110 @@
     groupAnima.animations = @[xBasiAnima, yBasiAnima, alphaAnima];
     groupAnima.duration = 2.0;
     
-    [_basicAniLabel.layer addAnimation:groupAnima forKey:nil];
+    [_label.layer addAnimation:groupAnima forKey:nil];
 }
 
-/**
- @brief 给同一个layer添加不同时长的动画
- */
-- (void)addServeralBasicAnimationToSameLayer {
+//! 3.串行动画afterSelector
+- (void)demo3 {
     
-    NSValue *yFromValue = @(CGRectGetMidY(_basicAniLabel.frame));
-    NSValue *xFromValue = @(CGRectGetMidX(_basicAniLabel.frame));
-    // 如果给某layer添加两个时间不同基础动画
-    /**
-     * 动画会执行完毕，不同的动画同时执行，然后剩余的时间继续执行剩余动画
-     */
-    CABasicAnimation *yBasiAnima = [self qiBasicAnimationWithKeyPath:@"position.y" fromValue:yFromValue byValue:@([UIScreen mainScreen].bounds.size.height / 4) toValue:nil duration:1.0 fillMode:kCAFillModeForwards removeOnCompletion:NO];
-    [_basicAniLabel.layer addAnimation:yBasiAnima forKey:@"postion.y"];
+    [self toBottom];
+    [self performSelector:@selector(toRight) withObject:self afterDelay:1.0];
+    [self performSelector:@selector(toTop) withObject:self afterDelay:2.0];
+    [self performSelector:@selector(toLeft) withObject:self afterDelay:3.0];
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(4.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        self.label.text = @"QiShare";
+    });
+}
+
+//! 4.串行队列动画
+- (void)demo4 {
     
-    CABasicAnimation *xBasiAnima = [self qiBasicAnimationWithKeyPath:@"position.x" fromValue:xFromValue byValue:@([UIScreen mainScreen].bounds.size.width / 3 * 2) toValue:nil duration:2.0 fillMode:kCAFillModeForwards removeOnCompletion:NO];
-    [_basicAniLabel.layer addAnimation:xBasiAnima forKey:@"postion.x"];
+    // a)创建串行队列
+    dispatch_queue_t serialQue = dispatch_queue_create("com.qishare.serialQueue", DISPATCH_QUEUE_SERIAL);
+    
+    // 1)动作一：向下
+    dispatch_async(serialQue, ^{
+        
+        [NSThread sleepForTimeInterval:1.0];
+        dispatch_sync(dispatch_get_main_queue(), ^{
+            [self toBottom];
+        });
+    });
+    
+    // 2)动作二：向右
+    dispatch_async(serialQue, ^{
+        
+        [NSThread sleepForTimeInterval:1.0];
+        dispatch_sync(dispatch_get_main_queue(), ^{
+            [self toRight];
+        });
+    });
+    
+    // 3)动作三：向上
+    dispatch_async(serialQue, ^{
+        
+        [NSThread sleepForTimeInterval:1.0];
+        dispatch_sync(dispatch_get_main_queue(), ^{
+            [self toTop];
+        });
+    });
+    
+    // 4)动作四：向左
+    dispatch_async(serialQue, ^{
+        [NSThread sleepForTimeInterval:1.0];
+        dispatch_sync(dispatch_get_main_queue(), ^{
+            [self toLeft];
+        });
+    });
+    
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(4.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        self.label.text = @"QiShare";
+    });
 }
 
 
-#pragma mark - Actions
+#pragma mark - 基本动作：上下左右
 
-- (void)startAnimaButtonClicked:(UIButton *)sender {
+- (void)toTop {
     
-    // 给layer添加组动画
-//    [self addGroupAnimationToSameLayer];
-//    return;
-    
-    // 添加多个到同一个layer
-//    [self addServalBasicAnimationToSameLayer];
-//    return;
-    
-    // 串行队列动画
-//    [self serialQueueAnima];
-//    return;
-    
-    // 串行动画afterSelector
-    [self serialAfterSelectorAnimation];
+    _label.text = @"QiShare向上";
+    NSValue *fromValue = @(CGRectGetMidY(_label.frame) + (CGRectGetHeight(self.view.frame) / QiGridViewRow * (QiGridViewRow - 1)));
+    NSValue *byValue = @(-(CGRectGetHeight(self.view.frame) / QiGridViewRow * (QiGridViewRow - 1)));
+    CABasicAnimation *topAnima = [self qiBasicAnimationWithKeyPath:@"position.y" fromValue:fromValue byValue:byValue toValue:nil duration:1.0 fillMode:kCAFillModeForwards removeOnCompletion:NO];
+    [_label.layer addAnimation:topAnima forKey:@"position.y"];
 }
+
+- (void)toBottom {
+    
+    _label.text = @"QiShare向下";
+    NSValue *fromValue = @(CGRectGetMidY(_label.frame));
+    NSValue *byValue = @(CGRectGetHeight(self.view.frame) / QiGridViewRow * (QiGridViewRow - 1));
+    CABasicAnimation *downAnima = [self qiBasicAnimationWithKeyPath:@"position.y" fromValue:fromValue byValue:byValue toValue:nil duration:1.0 fillMode:kCAFillModeForwards removeOnCompletion:NO];
+    [_label.layer addAnimation:downAnima forKey:@"position.y"];
+}
+
+- (void)toLeft {
+    
+    _label.text = @"QiShare向左";
+    NSValue *fromValue = @(CGRectGetMidX(_label.frame) + CGRectGetWidth(self.view.frame) / QiGridViewCol * (QiGridViewCol - 1));
+    NSValue *byValue = @(-(CGRectGetWidth(self.view.frame) / QiGridViewCol * (QiGridViewCol - 1)));
+    CABasicAnimation *leftAnimation = [self qiBasicAnimationWithKeyPath:@"position.x" fromValue:fromValue byValue:byValue toValue:nil duration:1.0 fillMode:kCAFillModeForwards removeOnCompletion:NO];
+    [_label.layer addAnimation:leftAnimation forKey:@"position.x"];
+}
+
+- (void)toRight {
+    
+    _label.text = @"QiShare向右";
+    NSValue *fromValue = @(CGRectGetMidX(_label.frame));
+    NSValue *byValue = @(CGRectGetWidth(self.view.frame) / QiGridViewCol * (QiGridViewCol - 1));
+    CABasicAnimation *rightAnima = [self qiBasicAnimationWithKeyPath:@"position.x" fromValue:fromValue byValue:byValue toValue:nil duration:1.0 fillMode:kCAFillModeForwards removeOnCompletion:NO];
+    [_label.layer addAnimation:rightAnima forKey:@"position.x"];
+}
+
 
 #pragma mark - UTils
 
-/**
- @brief 快速创建基础动画
- */
+//! 快速创建CABasicAnimation
 - (CABasicAnimation *)qiBasicAnimationWithKeyPath:(NSString *)keypath fromValue:(id)fromValue byValue:(id)byValue toValue:(id)toValue duration:(NSTimeInterval)duration fillMode:(NSString *)fillMode removeOnCompletion:(BOOL)removeOnCompletion{
     
     CABasicAnimation *basicAnima = [CABasicAnimation animationWithKeyPath:keypath];
@@ -219,6 +192,35 @@
     basicAnima.fillMode = fillMode;
     basicAnima.removedOnCompletion = removeOnCompletion;
     return basicAnima;
+}
+
+- (void)initViews {
+    
+    self.view.backgroundColor = [UIColor whiteColor];
+    
+    CGFloat lblW = [UIScreen mainScreen].bounds.size.width / QiGridViewCol;
+    CGFloat lblH = [UIScreen mainScreen].bounds.size.height / QiGridViewRow;
+    
+    QiGridView *gridView = [[QiGridView alloc] initWithFrame:[UIScreen mainScreen].bounds];
+    [self.view addSubview:gridView];
+    gridView.backgroundColor = [[UIColor whiteColor] colorWithAlphaComponent:0.2];
+    
+    _label = [[UILabel alloc] initWithFrame:CGRectMake(.0, .0, lblW, lblH)];
+    [self.view addSubview:_label];
+    
+    _label.backgroundColor = [UIColor redColor];
+    _label.text = @"QiShare";
+    _label.textAlignment = NSTextAlignmentCenter;
+    _label.font = [UIFont systemFontOfSize:20.0];
+}
+
+- (void)setupButton {
+    
+    UIButton *startAnimaBtn = [[UIButton alloc] initWithFrame:CGRectMake([UIScreen mainScreen].bounds.size.width/2 - 50.0, [UIScreen mainScreen].bounds.size.height - 60.0, 100.0, 40.0)];
+    startAnimaBtn.backgroundColor = [UIColor grayColor];
+    [startAnimaBtn setTitle:@"开始动画" forState:UIControlStateNormal];
+    [self.view addSubview:startAnimaBtn];
+    [startAnimaBtn addTarget:self action:@selector(startAnimaButtonClicked:) forControlEvents:UIControlEventTouchUpInside];
 }
 
 
